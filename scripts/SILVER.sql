@@ -4,7 +4,7 @@ Created a stored procedure `silver.load_silver` that performs ETL (Extract, Tran
 
 ### Key Features
 
-- **Truncation and Load** for the following Silver tables:
+- **Creation and Truncation and Load** for the following Silver tables:
   - `Silver.crm_cust_info`
   - `Silver.crm_prd_info`
   - `Silver.crm_sales_info`
@@ -46,6 +46,7 @@ CREATE OR ALTER PROCEDURE silver.load_silver
 AS
 BEGIN
     SET NOCOUNT ON;
+
     DECLARE @proc_start_time DATETIME = GETDATE();
     DECLARE @table_start_time DATETIME;
     DECLARE @elapsed_seconds INT;
@@ -53,12 +54,96 @@ BEGIN
     BEGIN TRY
 
     -- ===============================================
-    -- Process: Customer Information (CRM)
+    -- Step 1: Create Tables if they don't exist (or drop & recreate)
+    -- ===============================================
+
+    PRINT '--- Creating Silver layer tables ---';
+
+    -- Customer Info Table
+    IF OBJECT_ID('Silver.crm_cust_info','U') IS NOT NULL DROP TABLE Silver.crm_cust_info;
+
+    CREATE TABLE Silver.crm_cust_info (
+        cst_id	INT,
+        cst_key	NVARCHAR(50),
+        cst_firstname NVARCHAR(50),
+        cst_lastname NVARCHAR(50),
+        cst_marital_status NVARCHAR(50),
+        cst_gndr NVARCHAR(50),
+        cst_create_date DATE,
+        dwh_creation_date DATETIME2 DEFAULT GETDATE()
+    );
+
+    -- Product Info Table
+    IF OBJECT_ID('Silver.crm_prd_info','U') IS NOT NULL DROP TABLE Silver.crm_prd_info;
+
+    CREATE TABLE Silver.crm_prd_info (
+        prd_id INT,
+        prd_key NVARCHAR(50),
+        prd_cat_id NVARCHAR(50),
+        sales_prd_key NVARCHAR(50),
+        prd_nm NVARCHAR(50),
+        prd_cost INT,
+        prd_line NVARCHAR(50),
+        prd_start_dt DATE,
+        prd_end_dt DATE,
+        dwh_creation_date DATETIME2 DEFAULT GETDATE()
+    );
+
+    -- Sales Info Table
+    IF OBJECT_ID('Silver.crm_sales_info','U') IS NOT NULL DROP TABLE Silver.crm_sales_info;
+
+    CREATE TABLE Silver.crm_sales_info (
+        sls_ord_num NVARCHAR(50),
+        sls_prd_key NVARCHAR(50),
+        sls_cust_id	INT,
+        sls_order_dt DATE,
+        sls_ship_dt DATE,
+        sls_due_dt DATE,
+        sls_sales INT,
+        sls_quantity INT,
+        sls_price INT,
+        dwh_creation_date DATETIME2 DEFAULT GETDATE()
+    );
+
+    -- ERP Customer Info Table
+    IF OBJECT_ID('Silver.erp_cust_az12','U') IS NOT NULL DROP TABLE Silver.erp_cust_az12;
+
+    CREATE TABLE Silver.erp_cust_az12 (
+        cid NVARCHAR(50),
+        bdate DATE,
+        gen NVARCHAR(50),
+        dwh_creation_date DATETIME2 DEFAULT GETDATE()
+    );
+
+    -- ERP Location Info Table
+    IF OBJECT_ID('Silver.erp_loc_101','U') IS NOT NULL DROP TABLE Silver.erp_loc_101;
+
+    CREATE TABLE Silver.erp_loc_101 (
+        cid NVARCHAR(50),
+        country  NVARCHAR(50),
+        dwh_creation_date DATETIME2 DEFAULT GETDATE()
+    );
+
+    -- ERP Product Category Table
+    IF OBJECT_ID('Silver.erp_px_cat_g1v2','U') IS NOT NULL DROP TABLE Silver.erp_px_cat_g1v2;
+
+    CREATE TABLE Silver.erp_px_cat_g1v2 (
+        id NVARCHAR(50),
+        cat NVARCHAR(50),
+        subcat NVARCHAR(50),
+        maintanance NVARCHAR(50),
+        dwh_creation_date DATETIME2 DEFAULT GETDATE()
+    );
+
+    PRINT '--- Completed creation of Silver layer tables ---';
+
+    -- ===============================================
+    -- Load Silver.crm_cust_info
     -- ===============================================
     SET @table_start_time = GETDATE();
-    PRINT '--- Starting load for table: Silver.crm_cust_info'
+    PRINT '--- Starting load for table: Silver.crm_cust_info';
 
-    TRUNCATE TABLE Silver.crm_cust_info
+    TRUNCATE TABLE Silver.crm_cust_info;
 
     INSERT INTO Silver.crm_cust_info (
         cst_id, cst_key, cst_firstname, cst_lastname,
@@ -85,19 +170,18 @@ BEGIN
         FROM Bronze.crm_cust_info
         WHERE cst_id IS NOT NULL
     ) t
-    WHERE flag_cst_id = 1
+    WHERE flag_cst_id = 1;
 
     SET @elapsed_seconds = DATEDIFF(SECOND, @table_start_time, GETDATE());
-    PRINT 'Completed load for Silver.crm_cust_info in ' + CAST(@elapsed_seconds AS VARCHAR) + ' seconds'
-
+    PRINT 'Completed load for Silver.crm_cust_info in ' + CAST(@elapsed_seconds AS VARCHAR) + ' seconds';
 
     -- ===============================================
-    -- Process: Product Information (CRM)
+    -- Load Silver.crm_prd_info
     -- ===============================================
     SET @table_start_time = GETDATE();
-    PRINT '--- Starting load for table: Silver.crm_prd_info'
+    PRINT '--- Starting load for table: Silver.crm_prd_info';
 
-    TRUNCATE TABLE Silver.crm_prd_info
+    TRUNCATE TABLE Silver.crm_prd_info;
 
     INSERT INTO Silver.crm_prd_info (
         prd_id, prd_key, prd_cat_id, sales_prd_key,
@@ -113,19 +197,18 @@ BEGIN
         COALESCE(prd_line, 'N/A'),
         CAST(prd_start_dt AS DATE),
         CAST(LEAD(prd_start_dt) OVER (PARTITION BY prd_key ORDER BY prd_start_dt) AS DATE)
-    FROM Bronze.crm_prd_info
+    FROM Bronze.crm_prd_info;
 
     SET @elapsed_seconds = DATEDIFF(SECOND, @table_start_time, GETDATE());
-    PRINT 'Completed load for Silver.crm_prd_info in ' + CAST(@elapsed_seconds AS VARCHAR) + ' seconds'
-
+    PRINT 'Completed load for Silver.crm_prd_info in ' + CAST(@elapsed_seconds AS VARCHAR) + ' seconds';
 
     -- ===============================================
-    -- Process: Sales Information (CRM)
+    -- Load Silver.crm_sales_info
     -- ===============================================
     SET @table_start_time = GETDATE();
-    PRINT '--- Starting load for table: Silver.crm_sales_info'
+    PRINT '--- Starting load for table: Silver.crm_sales_info';
 
-    TRUNCATE TABLE Silver.crm_sales_info
+    TRUNCATE TABLE Silver.crm_sales_info;
 
     INSERT INTO Silver.crm_sales_info (
         sls_ord_num, sls_prd_key, sls_cust_id, 
@@ -159,19 +242,18 @@ BEGIN
                 ELSE sls_price 
             END
         )
-    FROM Bronze.crm_sales_info
+    FROM Bronze.crm_sales_info;
 
     SET @elapsed_seconds = DATEDIFF(SECOND, @table_start_time, GETDATE());
-    PRINT 'Completed load for Silver.crm_sales_info in ' + CAST(@elapsed_seconds AS VARCHAR) + ' seconds'
-
+    PRINT 'Completed load for Silver.crm_sales_info in ' + CAST(@elapsed_seconds AS VARCHAR) + ' seconds';
 
     -- ===============================================
-    -- ERP Customer Info (AZ12)
+    -- Load Silver.erp_cust_az12
     -- ===============================================
     SET @table_start_time = GETDATE();
-    PRINT '--- Starting load for table: Silver.erp_cust_az12'
+    PRINT '--- Starting load for table: Silver.erp_cust_az12';
 
-    TRUNCATE TABLE Silver.erp_cust_az12
+    TRUNCATE TABLE Silver.erp_cust_az12;
 
     INSERT INTO Silver.erp_cust_az12 (
         cid, bdate, gen
@@ -188,19 +270,18 @@ BEGIN
             WHEN LEN(TRIM(gen)) = 0 OR gen IS NULL THEN 'N/A'
             ELSE TRIM(gen) 
         END
-    FROM Bronze.erp_cust_az12
+    FROM Bronze.erp_cust_az12;
 
     SET @elapsed_seconds = DATEDIFF(SECOND, @table_start_time, GETDATE());
-    PRINT 'Completed load for Silver.erp_cust_az12 in ' + CAST(@elapsed_seconds AS VARCHAR) + ' seconds'
-
+    PRINT 'Completed load for Silver.erp_cust_az12 in ' + CAST(@elapsed_seconds AS VARCHAR) + ' seconds';
 
     -- ===============================================
-    -- ERP Location Info
+    -- Load Silver.erp_loc_101
     -- ===============================================
     SET @table_start_time = GETDATE();
-    PRINT '--- Starting load for table: Silver.erp_loc_101'
+    PRINT '--- Starting load for table: Silver.erp_loc_101';
 
-    TRUNCATE TABLE Silver.erp_loc_101
+    TRUNCATE TABLE Silver.erp_loc_101;
 
     INSERT INTO Silver.erp_loc_101 (
         cid, country
@@ -213,38 +294,36 @@ BEGIN
             WHEN country IS NULL OR TRIM(country) = '' THEN 'N/A'
             ELSE TRIM(country) 
         END
-    FROM Bronze.erp_loc_101
+    FROM Bronze.erp_loc_101;
 
     SET @elapsed_seconds = DATEDIFF(SECOND, @table_start_time, GETDATE());
-    PRINT 'Completed load for Silver.erp_loc_101 in ' + CAST(@elapsed_seconds AS VARCHAR) + ' seconds'
-
+    PRINT 'Completed load for Silver.erp_loc_101 in ' + CAST(@elapsed_seconds AS VARCHAR) + ' seconds';
 
     -- ===============================================
-    -- ERP Product Category Info
+    -- Load Silver.erp_px_cat_g1v2
     -- ===============================================
     SET @table_start_time = GETDATE();
-    PRINT '--- Starting load for table: Silver.erp_px_cat_g1v2'
+    PRINT '--- Starting load for table: Silver.erp_px_cat_g1v2';
 
-    TRUNCATE TABLE Silver.erp_px_cat_g1v2
+    TRUNCATE TABLE Silver.erp_px_cat_g1v2;
 
     INSERT INTO Silver.erp_px_cat_g1v2 (
         id, cat, subcat, maintanance
     )
     SELECT 
         id, cat, subcat, maintanance
-    FROM Bronze.erp_px_cat_g1v2
+    FROM Bronze.erp_px_cat_g1v2;
 
     SET @elapsed_seconds = DATEDIFF(SECOND, @table_start_time, GETDATE());
-    PRINT 'Completed load for Silver.erp_px_cat_g1v2 in ' + CAST(@elapsed_seconds AS VARCHAR) + ' seconds'
-
+    PRINT 'Completed load for Silver.erp_px_cat_g1v2 in ' + CAST(@elapsed_seconds AS VARCHAR) + ' seconds';
 
     -- ===============================================
     -- Final Success Message
     -- ===============================================
     DECLARE @proc_end_time DATETIME = GETDATE();
     SET @elapsed_seconds = DATEDIFF(SECOND, @proc_start_time, @proc_end_time);
-    PRINT '=== All tables loaded successfully into Silver layer ===';
-    PRINT '=== Total time taken: ' + CAST(@elapsed_seconds AS VARCHAR) + ' seconds ==='
+    PRINT '=== All tables created and loaded successfully into Silver layer ===';
+    PRINT '=== Total time taken: ' + CAST(@elapsed_seconds AS VARCHAR) + ' seconds ===';
 
     END TRY
 
@@ -253,13 +332,13 @@ BEGIN
         DECLARE @ErrLine INT = ERROR_LINE();
         DECLARE @ErrSeverity INT = ERROR_SEVERITY();
         DECLARE @ErrState INT = ERROR_STATE();
-        PRINT '*** ERROR OCCURRED ***'
-        PRINT 'Message: ' + @ErrMsg
-        PRINT 'Line: ' + CAST(@ErrLine AS VARCHAR)
-        PRINT 'Severity: ' + CAST(@ErrSeverity AS VARCHAR) + ' State: ' + CAST(@ErrState AS VARCHAR)
+        PRINT '*** ERROR OCCURRED ***';
+        PRINT 'Message: ' + @ErrMsg;
+        PRINT 'Line: ' + CAST(@ErrLine AS VARCHAR);
+        PRINT 'Severity: ' + CAST(@ErrSeverity AS VARCHAR) + ' State: ' + CAST(@ErrState AS VARCHAR);
     END CATCH
-END
-
+END;
 GO
+
 -- Execute the procedure
-EXEC silver.load_silver
+EXEC silver.load_silver;
