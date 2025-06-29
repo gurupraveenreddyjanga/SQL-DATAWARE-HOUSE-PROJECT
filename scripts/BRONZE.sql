@@ -13,11 +13,11 @@ IF OBJECT_ID('Bronze.crm_cust_info','U') IS NOT NULL DROP TABLE Bronze.crm_cust_
 
 CREATE TABLE Bronze.crm_cust_info(
     cst_id INT,                          -- Customer ID
-    cst_key NVARCHAR(25),                -- Customer unique key
-    cst_firstname NVARCHAR(25),          -- First name
-    cst_lastname NVARCHAR(25),           -- Last name
-    cst_marital_status NVARCHAR(25),     -- Marital status
-    cst_gndr NVARCHAR(25),               -- Gender
+    cst_key NVARCHAR(50),                -- Customer unique key
+    cst_firstname NVARCHAR(50),          -- First name
+    cst_lastname NVARCHAR(50),           -- Last name
+    cst_marital_status NVARCHAR(50),     -- Marital status
+    cst_gndr NVARCHAR(50),               -- Gender
     cst_create_date DATE                 -- Date of creation
 );
 
