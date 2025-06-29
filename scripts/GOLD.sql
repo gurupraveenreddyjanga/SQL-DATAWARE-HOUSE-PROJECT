@@ -7,7 +7,7 @@
 -- Views Created:
 --   1. [Gold].[dim_customers]   - Customer dimension
 --   2. [Gold].[dim_products]    - Product dimension
---   3. [Gold].[dim_fact_sales]  - Sales fact table with links to product and customer dims
+--   3. [Gold].[fact_sales]  - Sales fact table with links to product and customer dims
 -- ========================================================================================
 
 
@@ -84,11 +84,11 @@ WHERE pn.prd_end_dt IS NULL
 USE [DataWareHouse]
 GO
 
-IF OBJECT_ID('gold.dim_fact_sales', 'V') IS NOT NULL 
-    DROP VIEW gold.dim_fact_sales
+IF OBJECT_ID('gold.fact_sales', 'V') IS NOT NULL 
+    DROP VIEW gold.fact_sales
 GO
 
-CREATE VIEW gold.dim_fact_sales AS
+CREATE VIEW gold.fact_sales AS
 SELECT 
     cs.sls_ord_num AS order_number,
     pr.product_key AS product_key,         -- FK to product dimension
