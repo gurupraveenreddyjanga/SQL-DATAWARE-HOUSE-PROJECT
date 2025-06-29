@@ -33,7 +33,7 @@ Data Analytics
 - `crm.csv` – Customer Relationship Management data
 - `crp.csv` – Additional business or operational data
 
-All files are located in the `/data/` folder of the repository.
+All files are located in the `/datasets/` folder of the repository.
 
 ## 🎯 Project Purpose
 
