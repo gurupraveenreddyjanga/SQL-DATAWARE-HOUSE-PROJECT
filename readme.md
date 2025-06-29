@@ -1,7 +1,8 @@
 
 # SQL Data Warehouse Project
 
-🏗️ Data Architecture
+**🏗️ Data Architecture**
+
 The data architecture for this project follows Medallion Architecture Bronze, Silver, and Gold layers:
 ![data_architecture](https://github.com/user-attachments/assets/f66556cf-bf47-408b-a598-b106717c0831)
 
